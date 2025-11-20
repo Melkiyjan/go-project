@@ -1,0 +1,28 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>все заметки</title>
+</head>
+<body>
+<h1>Все заметки</h1>
+<table>
+    <tr>
+        <th>Title</th>
+        <th>Description</th>
+        <th>Manage</th>
+    </tr>
+    {{range .}}
+    <tr>
+        <td>{{.Title}}</td>
+        <td>{{.Content}}</td>
+        <td><a href="/remove?id={{.Id}}"><Button>Удалить</Button></a></td>
+    </tr>
+    {{end}}
+</table>
+<br>
+<br>
+<br>
+<a href="/add"><button>Добавить новую заметку</button></a>
+</body>
+</html>
