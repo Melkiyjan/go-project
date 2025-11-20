@@ -11,7 +11,7 @@ import (
 )
 
 type Note struct {
-	Id      string `json:"id"`
+	Id      int64  `json:"id"`
 	Title   string `json:"title"`
 	Content string `json:"content"`
 }
@@ -67,7 +67,7 @@ func (a *App) initTemplates() error {
 func (a *App) mainPage(w http.ResponseWriter, _ *http.Request) {
 	var notes []Note
 
-	rows, err := a.DB.Query("SELECT * FROM notes")
+	rows, err := a.DB.Query("SELECT id, title, content FROM notes")
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -95,6 +95,7 @@ func (a *App) mainPage(w http.ResponseWriter, _ *http.Request) {
 	}
 
 	// Отдаём HTML-страницу
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := a.Templates["index"].Execute(w, notes); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -102,6 +103,7 @@ func (a *App) mainPage(w http.ResponseWriter, _ *http.Request) {
 }
 
 func (a *App) addPage(w http.ResponseWriter, r *http.Request) {
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	http.ServeFile(w, r, "templates/add.html")
 }
 
@@ -125,6 +127,7 @@ func (a *App) noteDetailPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
 	if err := a.Templates["details"].Execute(w, note); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -132,6 +135,11 @@ func (a *App) noteDetailPage(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) createNoteHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
+		return
+	}
+
 	title := r.FormValue("title")
 	content := r.FormValue("content")
 
@@ -180,7 +188,7 @@ func (a *App) removeNoteHandler(w http.ResponseWriter, r *http.Request) {
 func main() {
 	db, err := initDB()
 	if err != nil {
-		log.Fatal("Ошибка инициализации БД:", err)
+		log.Fatal(err)
 	}
 
 	defer func() {

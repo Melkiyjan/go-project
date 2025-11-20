@@ -16,7 +16,10 @@
     <tr>
         <td>{{.Title}}</td>
         <td>{{.Content}}</td>
-        <td><a href="/remove?id={{.Id}}"><Button>Удалить</Button></a></td>
+        <td>
+            <a href="/note?id={{.Id}}"><button>Открыть</button></a>
+            <a href="/remove?id={{.Id}}"><button>Удалить</button></a>
+        </td>
     </tr>
     {{end}}
 </table>

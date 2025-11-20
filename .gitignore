@@ -1,0 +1,14 @@
+# IDE
+.idea/
+.vscode/
+
+# Бинарники Go
+*.exe
+*.out
+*.test
+
+# SQLite базы данных
+*.sqlite
+
+# Временные файлы
+tmp/
