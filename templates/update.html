@@ -1,0 +1,20 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Форма редактирование заметки</title>
+
+</head>
+<body>
+<h1>Редактирование заметки</h1>
+<form method="PATCH" action="/update?id={{.Id}}">
+    <label>Заголовок заметки:</label><br>
+    <input type="text" name="title" required placeholder="Введите заголовок" value="{{.Title}}"><br><br>
+
+    <label>Описание заметки:</label><br>
+    <textarea name="content" rows="15" cols="130">{{.Content}}</textarea><br><br>
+
+    <button type="submit">Сохранить</button>
+</form>
+</body>
+</html>

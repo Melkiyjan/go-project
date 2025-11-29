@@ -12,9 +12,10 @@
     <input type="text" name="title" required placeholder="Введите заголовок"><br><br>
 
     <label>Описание заметки:</label><br>
-    <textarea name="content"></textarea><br><br>
+    <textarea rows="15" cols="130" name="content" required></textarea><br><br>
 
     <button type="submit">Добавить</button>
+    <a href="/back?return={{.CurrentUrl}}"><button type="button">Назад</button></a>
 </form>
 </body>
 </html>

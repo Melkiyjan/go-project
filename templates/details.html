@@ -5,11 +5,14 @@
     <title>Title</title>
 </head>
 <body>
-<h2>{{.Title}}</h2>
 
-<p>{{.Content}}</p>
-
+<h1>Заметка № {{.Id}}</h1>
+<p>--------------------</p>
+<span>Название: </span><h3> {{.Title}}</h3>
+<p>--------------------</p>
+<p>Описание: {{.Content}}</p>
+<br><br>
 <a href="/"><button>Назад</button></a>
-
+<br>
 </body>
 </html>

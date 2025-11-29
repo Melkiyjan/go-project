@@ -12,13 +12,14 @@
         <th>Description</th>
         <th>Manage</th>
     </tr>
-    {{range .}}
+    {{range .Notes}}
     <tr>
         <td>{{.Title}}</td>
         <td>{{.Content}}</td>
         <td>
-            <a href="/note?id={{.Id}}"><button>Открыть</button></a>
-            <a href="/remove?id={{.Id}}"><button>Удалить</button></a>
+            <a href="/note?id={{.Id}}"><button type="button">Открыть</button></a>
+            <a href="/update-note?id={{.Id}}"><button type="button">Редактировать</button></a>
+            <a href="/remove?id={{.Id}}"><button type="button">Удалить</button></a>
         </td>
     </tr>
     {{end}}
@@ -26,6 +27,20 @@
 <br>
 <br>
 <br>
-<a href="/add"><button>Добавить новую заметку</button></a>
+<a href="/new-note"><button>Добавить новую заметку</button></a>
+<br>
+<br>
+<br>
+<div>
+    {{if .HasPrev}}
+    <a href="/?page={{.PrevPage}}">← Назад</a>
+    {{end}}
+
+    Страница {{.Page}}
+
+    {{if .HasNext}}
+    <a href="/?page={{.NextPage}}">Вперёд →</a>
+    {{end}}
+</div>
 </body>
 </html>

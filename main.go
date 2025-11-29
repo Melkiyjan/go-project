@@ -6,6 +6,7 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"strconv"
 
 	_ "modernc.org/sqlite"
 )
@@ -14,6 +15,15 @@ type Note struct {
 	Id      int64  `json:"id"`
 	Title   string `json:"title"`
 	Content string `json:"content"`
+}
+
+type IndexPageData struct {
+	Notes    []Note
+	Page     int
+	HasNext  bool
+	HasPrev  bool
+	NextPage int
+	PrevPage int
 }
 
 type App struct {
@@ -52,6 +62,7 @@ func (a *App) initTemplates() error {
 		{"index", "templates/index.html"},
 		{"add", "templates/add.html"},
 		{"details", "templates/details.html"},
+		{"update", "templates/update.html"},
 	}
 
 	for _, tmpl := range templates {
@@ -64,10 +75,19 @@ func (a *App) initTemplates() error {
 	return nil
 }
 
-func (a *App) mainPage(w http.ResponseWriter, _ *http.Request) {
+func (a *App) mainPage(w http.ResponseWriter, r *http.Request) {
 	var notes []Note
 
-	rows, err := a.DB.Query("SELECT id, title, content FROM notes")
+	pageStr := r.URL.Query().Get("page")
+	page, err := strconv.Atoi(pageStr)
+	if err != nil || page < 1 {
+		page = 1
+	}
+
+	limit := 1
+	offset := (page - 1) * limit
+
+	rows, err := a.DB.Query("SELECT id, title, content FROM notes LIMIT ? OFFSET ?", limit+1, offset)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -89,14 +109,29 @@ func (a *App) mainPage(w http.ResponseWriter, _ *http.Request) {
 		notes = append(notes, n)
 	}
 
+	hasNext := false
+	if len(notes) > limit {
+		hasNext = true
+		notes = notes[:limit] // отрезаем лишний один
+	}
+
 	if err := rows.Err(); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	log.Println(len(notes))
+	data := IndexPageData{
+		Notes:    notes,
+		Page:     page,
+		HasPrev:  page > 1,
+		HasNext:  hasNext,
+		PrevPage: page - 1,
+		NextPage: page + 1,
+	}
 
 	// Отдаём HTML-страницу
 	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	if err := a.Templates["index"].Execute(w, notes); err != nil {
+	if err := a.Templates["index"].Execute(w, data); err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
@@ -107,7 +142,34 @@ func (a *App) addPage(w http.ResponseWriter, r *http.Request) {
 	http.ServeFile(w, r, "templates/add.html")
 }
 
-func (a *App) noteDetailPage(w http.ResponseWriter, r *http.Request) {
+func (a *App) updatePage(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
+	}
+
+	var note Note
+
+	err := a.DB.QueryRow("SELECT id, title, content FROM notes WHERE id = ?", id).
+		Scan(&note.Id, &note.Title, &note.Content)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			http.Error(w, "Note not found", http.StatusNotFound)
+		} else {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+		}
+		return
+	}
+
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	if err := a.Templates["update"].Execute(w, note); err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
+func (a *App) detailPage(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
 		http.Error(w, "ID is required", http.StatusBadRequest)
@@ -134,6 +196,7 @@ func (a *App) noteDetailPage(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// handler
 func (a *App) createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		http.Error(w, "Method not allowed", http.StatusMethodNotAllowed)
@@ -163,6 +226,28 @@ func (a *App) createNoteHandler(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, fmt.Sprintf("/note?id=%d", id), http.StatusSeeOther)
 }
 
+func (a *App) updateNoteHandler(w http.ResponseWriter, r *http.Request) {
+	id := r.URL.Query().Get("id")
+	if id == "" {
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
+	}
+
+	res, err := a.DB.Exec("UPDATE notes SET title = ?, content = ? WHERE id = ?", id)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	rowsAffected, _ := res.RowsAffected()
+	if rowsAffected == 0 {
+		http.Error(w, "Note not found", http.StatusNotFound)
+		return
+	}
+
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
 func (a *App) removeNoteHandler(w http.ResponseWriter, r *http.Request) {
 	id := r.URL.Query().Get("id")
 	if id == "" {
@@ -183,6 +268,14 @@ func (a *App) removeNoteHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Redirect(w, r, "/", http.StatusSeeOther)
+}
+
+func (a *App) backHandler(w http.ResponseWriter, r *http.Request) {
+	returnURL := r.URL.Query().Get("return")
+	if returnURL == "" {
+		returnURL = "/"
+	}
+	http.Redirect(w, r, returnURL, http.StatusSeeOther)
 }
 
 func main() {
@@ -210,9 +303,13 @@ func main() {
 	}
 
 	http.HandleFunc("/", app.mainPage)
-	http.HandleFunc("/add", app.addPage)
+	http.HandleFunc("/new-note", app.addPage)
+	http.HandleFunc("/update-note", app.updatePage)
+	http.HandleFunc("/note", app.detailPage)
+
+	http.HandleFunc("/back", app.backHandler)
 	http.HandleFunc("/create", app.createNoteHandler)
-	http.HandleFunc("/note", app.noteDetailPage)
+	http.HandleFunc("/update", app.updateNoteHandler)
 	http.HandleFunc("/remove", app.removeNoteHandler)
 
 	fmt.Println("Сервер запущен: http://localhost:8080")
